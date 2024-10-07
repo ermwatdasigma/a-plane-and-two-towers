@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plane Game with Destructible Towers</title>
+    <style>
+        canvas { border: 1px solid black; }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const plane = {
+            x: 200,
+            y: 300,
+            width: 50,
+            height: 20,
+            wingSpan: 40,
+            speed: 5
+        };
+
+        class TowerBlock {
+            constructor(x, y, width, height) {
+                this.x = x;
+                this.y = y;
+                this.width = width;
+                this.height = height;
+            }
+
+            draw() {
+                ctx.fillStyle = 'gray';
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+            }
+        }
+
+        const towerWidth = 50;
+        const towerSpacing = 10; // One block space between towers
+
+        const towers = [
+            { x: 375, y: 200, width: towerWidth, height: 400, blocks: [], label: "Tower 1" },
+            { x: 375 + towerWidth + towerSpacing, y: 200, width: towerWidth, height: 400, blocks: [], label: "Tower 2" }
+        ];
+
+        function initializeTowers() {
+            towers.forEach(tower => {
+                const blockHeight = 20;
+                const numBlocks = tower.height / blockHeight;
+                for (let i = 0; i < numBlocks; i++) {
+                    tower.blocks.push(new TowerBlock(tower.x, tower.y + i * blockHeight, tower.width, blockHeight));
+                }
+            });
+        }
+
+        function drawPlane() {
+            ctx.fillStyle = 'blue';
+            ctx.fillRect(plane.x, plane.y, plane.width, plane.height);
+            ctx.beginPath();
+            ctx.moveTo(plane.x + plane.width / 2, plane.y);
+            ctx.lineTo(plane.x + plane.width / 2 - plane.wingSpan / 2, plane.y + plane.height / 2);
+            ctx.lineTo(plane.x + plane.width / 2 + plane.wingSpan / 2, plane.y + plane.height / 2);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = 'black';
+            ctx.font = '14px Arial';
+            ctx.fillText('Plane', plane.x, plane.y - 10);
+        }
+
+        function drawTowers() {
+            towers.forEach((tower, index) => {
+                tower.blocks.forEach(block => block.draw());
+
+                ctx.fillStyle = 'black';
+                ctx.font = '14px Arial';
+                if (tower.blocks.length > 0) {
+                    ctx.fillText(tower.label, tower.x, tower.y - 10);
+                } else if (tower.label !== "Tower 1 Destroyed") {
+                    ctx.fillText(tower.label + " Destroyed", tower.x, tower.y - 10);
+                }
+            });
+        }
+
+        function checkCollision(rect1, rect2) {
+            return rect1.x < rect2.x + rect2.width &&
+                   rect1.x + rect1.width > rect2.x &&
+                   rect1.y < rect2.y + rect2.height &&
+                   rect1.y + rect1.height > rect2.y;
+        }
+
+        function handleCollisions() {
+            towers.forEach((tower, index) => {
+                tower.blocks = tower.blocks.filter(block => {
+                    if (checkCollision(plane, block)) {
+                        const newBlocks = [];
+                        const smallBlockSize = 10;
+                        for (let i = 0; i < block.width / smallBlockSize; i++) {
+                            for (let j = 0; j < block.height / smallBlockSize; j++) {
+                                newBlocks.push(new TowerBlock(
+                                    block.x + i * smallBlockSize,
+                                    block.y + j * smallBlockSize,
+                                    smallBlockSize,
+                                    smallBlockSize
+                                ));
+                            }
+                        }
+                        tower.blocks.push(...newBlocks);
+                        return false;
+                    }
+                    return true;
+                });
+
+                if (tower.blocks.length === 0) {
+                    if (tower.label === "Tower 2" && towers[0].blocks.length > 0) {
+                        tower.label = "Tower 1 Destroyed";
+                    } else if (tower.label === "Tower 2") {
+                        tower.label = "Tower 2 Destroyed";
+                    } else if (tower.label === "Tower 1") {
+                        tower.label = "Tower 1 Destroyed";
+                        if (towers[1].blocks.length > 0) {
+                            towers[1].label = "Tower 1";
+                        }
+                    }
+                }
+            });
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawPlane();
+            drawTowers();
+        }
+
+        function update() {
+            handleCollisions();
+            draw();
+            requestAnimationFrame(update);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            switch(e.key.toLowerCase()) {
+                case 'w': plane.y -= plane.speed; break;
+                case 's': plane.y += plane.speed; break;
+                case 'a': plane.x -= plane.speed; break;
+                case 'd': plane.x += plane.speed; break;
+            }
+        });
+
+        initializeTowers();
+        update();
+    </script>
+</body>
+</html>
